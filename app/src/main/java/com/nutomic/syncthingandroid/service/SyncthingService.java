@@ -3,8 +3,6 @@ package com.nutomic.syncthingandroid.service;
 import android.app.Service;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.content.res.Resources;
-import android.os.Build;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
@@ -12,7 +10,6 @@ import android.util.Log;
 
 import androidx.annotation.Nullable;
 
-import com.google.common.io.Files;
 import com.nutomic.syncthingandroid.R;
 import com.nutomic.syncthingandroid.SyncthingApp;
 import com.nutomic.syncthingandroid.http.PollWebGuiAvailableTask;
@@ -802,10 +799,13 @@ public class SyncthingService extends Service {
      * Default: /storage/emulated0/backups/syncthing/config.zip
      */
     private final File getBackupZipFile() {
-        String relPathToZip = mPreferences.getString(
-                Constants.PREF_BACKUP_REL_PATH_TO_ZIP,
-                "backups/syncthing/config.zip"
-        );
+        String defaultPath = "backups/syncthing/config.zip";
+        String relPathToZip = mPreferences.getString(Constants.PREF_BACKUP_REL_PATH_TO_ZIP, defaultPath);
+        // NOTE: somehow we get empty string from the prefs, which crashes the app, use default when that happens
+        // TODO: figure out where the empty string is coming from and fix that
+        if (relPathToZip.isEmpty()) {
+            relPathToZip = defaultPath;
+        }
         return new File(Environment.getExternalStorageDirectory(), relPathToZip);
     }
 
@@ -1042,7 +1042,12 @@ public class SyncthingService extends Service {
             failSuccess = failSuccess && importConfigSharedPrefs(sharedPreferencesFile);
             sharedPreferencesFile.delete();
         }
-        Log.d(TAG, "importConfig END");
+
+        try {
+            cleanupImportedFolderDatabases();
+        } catch (Exception e) {
+            Log.e(TAG, "importConfig: Failed to cleanup invalid folder databases", e);
+        }
 
         // Start syncthing after import if run conditions apply.
         if (mLastDeterminedShouldRun) {
@@ -1056,6 +1061,45 @@ public class SyncthingService extends Service {
             mainLooper.post(launchStartupTaskRunnable);
         }
         return failSuccess;
+    }
+
+    private void cleanupImportedFolderDatabases() {
+        ConfigXml configXml = new ConfigXml(this);
+        try {
+            configXml.loadConfig();
+        } catch (ConfigXml.OpenConfigException e) {
+            Log.w(TAG, "importConfig: Unable to parse imported config for DB cleanup");
+            return;
+        }
+
+        final List<Folder> folders = configXml.getFolders();
+        if (folders == null || folders.isEmpty()) {
+            return;
+        }
+
+        for (Folder folder : folders) {
+            if (folder == null || folder.id == null || folder.id.isEmpty()) {
+                continue;
+            }
+
+            final String folderPathValue = folder.path;
+            final File folderPath = (folderPathValue == null || folderPathValue.isEmpty())
+                    ? null
+                    : new File(folderPathValue);
+            final boolean folderPathMissing = folderPath == null || !folderPath.isDirectory();
+
+            String markerName = folder.markerName;
+            if (markerName == null || markerName.isEmpty()) {
+                markerName = Constants.FILENAME_STFOLDER;
+            }
+            final boolean markerMissing = folderPathMissing || !new File(folderPath, markerName).exists();
+
+            if (folderPathMissing || markerMissing) {
+                Log.i(TAG, "importConfig: Folder path or marker missing for folder id \"" + folder.id + "\". Resetting Syncthing database.");
+                new SyncthingRunnable(this, SyncthingRunnable.Command.resetdatabase).run();
+                break;
+            }
+        }
     }
 
     private boolean importConfigSharedPrefs(final File file) {
@@ -1096,13 +1140,13 @@ public class SyncthingService extends Service {
                         case "restartOnWakeup":
                         case "wakelock_while_binary_running":
                         case "use_root":
+                        case "important_news_shown_version":
                             LogV("importConfig: Ignoring deprecated pref \"" + prefKey + "\".");
                             break;
                         // Cached information which is not available on SettingsActivity.
                         case Constants.PREF_BTNSTATE_FORCE_START_STOP:
                         case Constants.PREF_DEBUG_FACILITIES_AVAILABLE:
                         case Constants.PREF_EVENT_PROCESSOR_LAST_SYNC_ID:
-                        case Constants.PREF_IMPORTANT_NEWS_SHOWN_VERSION:
                         case Constants.PREF_LAST_BINARY_VERSION:
                         case Constants.PREF_LOCAL_DEVICE_ID:
                         case Constants.PREF_LAST_RUN_TIME:

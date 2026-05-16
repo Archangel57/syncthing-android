@@ -19,6 +19,7 @@ import java.util.Map;
 public class Folder {
 
     // Folder Configuration
+    public String group = "";
     public String id;
     public String label = "";
     public String filesystemType = "basic";
@@ -77,6 +78,9 @@ public class Folder {
     // Since v1.22.0
     public Boolean syncXattrs = false;
     public Boolean sendXattrs = false;
+
+    // Since v2.1.0
+    public Boolean blockIndexing = true;
 
     // Folder Status
     public String invalid;

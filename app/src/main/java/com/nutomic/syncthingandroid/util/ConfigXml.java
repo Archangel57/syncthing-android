@@ -490,6 +490,7 @@ public class ConfigXml {
             Element r = (Element) node;
             Folder folder = new Folder();
             folder.id = getAttributeOrDefault(r, "id", "");
+            folder.group = getAttributeOrDefault(r, "group", folder.group);
             folder.label = getAttributeOrDefault(r, "label", folder.label);
             
             folder.path = getAttributeOrDefault(r, "path", "");
@@ -521,6 +522,7 @@ public class ConfigXml {
             folder.sendOwnership = getContentOrDefault(r.getElementsByTagName("sendOwnership").item(0), folder.sendOwnership);
             folder.syncXattrs = getContentOrDefault(r.getElementsByTagName("syncXattrs").item(0), folder.syncXattrs);
             folder.sendXattrs = getContentOrDefault(r.getElementsByTagName("sendXattrs").item(0), folder.sendXattrs);
+            folder.blockIndexing = getContentOrDefault(r.getElementsByTagName("blockIndexing").item(0), folder.blockIndexing);
             folder.filesystemType = getContentOrDefault(r.getElementsByTagName("filesystemType").item(0), folder.filesystemType);
 
             // Devices
@@ -612,6 +614,7 @@ public class ConfigXml {
             Element r = (Element) nodeFolders.item(i);
             if (folder.id.equals(getAttributeOrDefault(r, "id", ""))) {
                 // Found folder node to update.
+                r.setAttribute("group", folder.group);
                 r.setAttribute("label", folder.label);
                 r.setAttribute("path", folder.path);
                 r.setAttribute("type", folder.type);
@@ -638,6 +641,7 @@ public class ConfigXml {
                 setConfigElement(r, "sendOwnership", folder.sendOwnership);
                 setConfigElement(r, "syncXattrs", folder.syncXattrs);
                 setConfigElement(r, "sendXattrs", folder.sendXattrs);
+                setConfigElement(r, "blockIndexing", folder.blockIndexing);
                 setConfigElement(r, "filesystemType", folder.filesystemType);
 
                 // Update devices that share this folder.
@@ -1101,7 +1105,7 @@ public class ConfigXml {
         options.stunKeepaliveMinS = getContentOrDefault(elementOptions.getElementsByTagName("stunKeepaliveMinS").item(0), options.stunKeepaliveMinS);
         options.stunServer = getContentOrDefault(elementOptions.getElementsByTagName("stunServer").item(0), options.stunServer);
         options.maxConcurrentIncomingRequestKiB = getContentOrDefault(elementOptions.getElementsByTagName("maxConcurrentIncomingRequestKiB").item(0), options.maxConcurrentIncomingRequestKiB);
-        options.announceLanAddresses = getContentOrDefault(elementOptions.getElementsByTagName("announceLANAddresses").item(0), options.announceLanAddresses);
+        options.announceLANAddresses = getContentOrDefault(elementOptions.getElementsByTagName("announceLANAddresses").item(0), options.announceLANAddresses);
         options.sendFullIndexOnUpgrade = getContentOrDefault(elementOptions.getElementsByTagName("sendFullIndexOnUpgrade").item(0), options.sendFullIndexOnUpgrade);
         options.featureFlag = getContentOrDefault(elementOptions.getElementsByTagName("featureFlag").item(0), options.featureFlag);
         options.connectionLimitEnough = getContentOrDefault(elementOptions.getElementsByTagName("connectionLimitEnough").item(0), options.connectionLimitEnough);
